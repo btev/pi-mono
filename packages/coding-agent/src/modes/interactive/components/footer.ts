@@ -163,9 +163,21 @@ export class FooterComponent implements Component {
 		}
 
 		// Prepend the provider in parentheses if there are multiple providers and there's enough room
+		const lastAssistant = this.session.messages
+			.slice()
+			.reverse()
+			.find((m) => m.role === "assistant" && (m as any).model === state.model?.id) as any;
+
+		const displayProvider =
+			lastAssistant && lastAssistant.provider !== "openrouter"
+				? lastAssistant.provider
+				: lastAssistant?.responseProvider
+					? `openrouter/${lastAssistant.responseProvider}`
+					: state.model?.provider || "no-provider";
+
 		let rightSide = rightSideWithoutProvider;
-		if (this.footerData.getAvailableProviderCount() > 1 && state.model) {
-			rightSide = `(${state.model!.provider}) ${rightSideWithoutProvider}`;
+		if (this.footerData.getAvailableProviderCount() > 1 || displayProvider !== state.model?.provider) {
+			rightSide = `(${displayProvider}) ${rightSideWithoutProvider}`;
 			if (statsLeftWidth + minPadding + visibleWidth(rightSide) > width) {
 				// Too wide, fall back
 				rightSide = rightSideWithoutProvider;

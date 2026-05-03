@@ -220,6 +220,7 @@ export interface AssistantMessage {
 	provider: Provider;
 	model: string;
 	responseModel?: string; // Concrete `chunk.model` when different from the requested `model` (e.g. OpenRouter `auto` -> `anthropic/...`)
+	responseProvider?: string; // Concrete sub-provider when using an aggregator (e.g. OpenRouter reporting `Venice`)
 	responseId?: string; // Provider-specific response/message identifier when the upstream API exposes one
 	usage: Usage;
 	stopReason: StopReason;

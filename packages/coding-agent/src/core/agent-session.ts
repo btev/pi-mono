@@ -277,6 +277,8 @@ export class AgentSession {
 	private _bashAbortController: AbortController | undefined = undefined;
 	private _pendingBashMessages: BashExecutionMessage[] = [];
 
+	private _lastResponseHeaders: Record<string, string> | undefined;
+
 	// Extension system
 	private _extensionRunner!: ExtensionRunner;
 	private _turnIndex = 0;
@@ -327,6 +329,9 @@ export class AgentSession {
 		// Always subscribe to agent events for internal handling
 		// (session persistence, extensions, auto-compaction, retry logic)
 		this._unsubscribeAgent = this.agent.subscribe(this._handleAgentEvent);
+		this.agent.onResponse = (response) => {
+			this._lastResponseHeaders = response.headers;
+		};
 		this._installAgentToolHooks();
 
 		this._buildRuntime({
@@ -522,6 +527,16 @@ export class AgentSession {
 		// Emit to extensions first
 		await this._emitExtensionEvent(event);
 
+		if (event.type === "message_start" || event.type === "message_update") {
+			if (event.message.role === "assistant" && this.model?.provider === "openrouter") {
+				const assistant = event.message as AssistantMessage;
+				const subProvider = assistant.responseProvider || this._lastResponseHeaders?.["x-openrouter-provider"];
+				if (subProvider) {
+					assistant.provider = `openrouter/${subProvider}`;
+				}
+			}
+		}
+
 		// Notify all listeners
 		this._emit(event);
 
@@ -570,6 +585,7 @@ export class AgentSession {
 
 		// Check auto-retry and auto-compaction after agent completes
 		if (event.type === "agent_end" && this._lastAssistantMessage) {
+			this._lastResponseHeaders = undefined;
 			const msg = this._lastAssistantMessage;
 			this._lastAssistantMessage = undefined;
 
